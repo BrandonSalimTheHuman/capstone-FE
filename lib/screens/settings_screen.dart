@@ -21,8 +21,7 @@ class SettingsScreen extends StatelessWidget {
       _SettingItem(Icons.person_outline, 'Edit profile', () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-              builder: (_) => EditProfileScreen(isDark: isDark)),
+          MaterialPageRoute(builder: (_) => EditProfileScreen(isDark: isDark)),
         );
       }),
       _SettingItem(Icons.lock_outline, 'Change password', () {
@@ -32,7 +31,6 @@ class SettingsScreen extends StatelessWidget {
               builder: (_) => ChangePasswordScreen(isDark: isDark)),
         );
       }),
-      _SettingItem(Icons.notifications_outlined, 'Notifications', () {}),
       _SettingItem(Icons.brush_outlined, 'Change theme', () {
         onThemeChanged(!isDark);
         Navigator.pop(context);

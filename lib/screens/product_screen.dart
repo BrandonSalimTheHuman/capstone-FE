@@ -110,8 +110,7 @@ class _ProductScreenState extends State<ProductScreen> {
                         _QuantityButton(
                           icon: Icons.remove,
                           onTap: () {
-                            if (_quantity > 1)
-                              setState(() => _quantity--);
+                            if (_quantity > 1) setState(() => _quantity--);
                           },
                           isDark: isDark,
                         ),
@@ -138,8 +137,7 @@ class _ProductScreenState extends State<ProductScreen> {
                       final isSelected = _selectedStore == sp.store;
                       final isCheapest = sp.price == sortedPrices.first.price;
                       return GestureDetector(
-                        onTap: () =>
-                            setState(() => _selectedStore = sp.store),
+                        onTap: () => setState(() => _selectedStore = sp.store),
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 10),
                           padding: const EdgeInsets.symmetric(
@@ -254,8 +252,8 @@ class _QuantityButton extends StatelessWidget {
           color: isDark ? Colors.white : Colors.black,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon,
-            color: isDark ? Colors.black : Colors.white, size: 20),
+        child:
+            Icon(icon, color: isDark ? Colors.black : Colors.white, size: 20),
       ),
     );
   }
@@ -329,10 +327,11 @@ class _AddToListWidget extends StatelessWidget {
               onPressed: () => Navigator.pop(context),
               child: Text(
                 'ADD TO EXISTING LIST',
+                textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black87,
+                  color: Colors.white,
                   letterSpacing: 0.5,
                 ),
               ),

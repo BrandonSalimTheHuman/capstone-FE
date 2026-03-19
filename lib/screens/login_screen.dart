@@ -21,7 +21,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
     final bg = isDark ? AppColors.darkBg : AppColors.lightBg;
-    final cardBg = isDark ? AppColors.darkSurface : Colors.white.withOpacity(0.85);
+    final cardBg =
+        isDark ? AppColors.darkSurface : Colors.white.withOpacity(0.85);
     final textColor = isDark ? AppColors.white : AppColors.black;
     final labelColor = isDark ? Colors.white70 : Colors.black87;
     final fieldBg = isDark ? AppColors.darkCard : AppColors.lightCard;
@@ -39,9 +40,8 @@ class _LoginScreenState extends State<LoginScreen> {
               width: 260,
               height: 200,
               decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF2A3A50)
-                    : const Color(0xFFFFF8E1),
+                color:
+                    isDark ? const Color(0xFF2A3A50) : const Color(0xFFFFF8E1),
                 borderRadius: BorderRadius.circular(120),
               ),
             ),
@@ -62,12 +62,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Welcome!',
-                          style: GoogleFonts.poppins(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w800,
-                            color: textColor,
+                        Center(
+                          child: Text(
+                            'Welcome!',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontSize: 36,
+                              fontWeight: FontWeight.w800,
+                              color: textColor,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 20),
@@ -77,7 +80,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             keyboardType: TextInputType.emailAddress),
                         const SizedBox(height: 12),
                         _label('Password', labelColor),
-                        _field(_passCtrl, '••••••••••••', fieldBg, fieldTextColor,
+                        _field(
+                            _passCtrl, '••••••••••••', fieldBg, fieldTextColor,
                             obscure: true),
                         const SizedBox(height: 8),
                         Row(
@@ -131,8 +135,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            _socialBtn(Icons.facebook, const Color(0xFF1877F2)),
-                            const SizedBox(width: 16),
                             _socialBtn(Icons.g_mobiledata, Colors.redAccent),
                           ],
                         ),
@@ -183,8 +185,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _label(String text, Color color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Text(text,
-          style: GoogleFonts.poppins(fontSize: 14, color: color)),
+      child: Text(text, style: GoogleFonts.poppins(fontSize: 14, color: color)),
     );
   }
 

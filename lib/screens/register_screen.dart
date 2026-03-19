@@ -22,7 +22,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
     final bg = isDark ? AppColors.darkBg : AppColors.lightBg;
-    final cardBg = isDark ? AppColors.darkSurface : Colors.white.withOpacity(0.85);
+    final cardBg =
+        isDark ? AppColors.darkSurface : Colors.white.withOpacity(0.85);
     final textColor = isDark ? AppColors.white : AppColors.black;
     final labelColor = isDark ? Colors.white70 : Colors.black87;
     final fieldBg = isDark ? AppColors.darkCard : AppColors.lightCard;
@@ -41,9 +42,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               width: 260,
               height: 200,
               decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF2A3A50)
-                    : const Color(0xFFFFF8E1),
+                color:
+                    isDark ? const Color(0xFF2A3A50) : const Color(0xFFFFF8E1),
                 borderRadius: BorderRadius.circular(120),
               ),
             ),
@@ -64,28 +64,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Welcome!',
-                          style: GoogleFonts.poppins(
-                            fontSize: 36,
-                            fontWeight: FontWeight.w800,
-                            color: textColor,
+                        Center(
+                          child: Text(
+                            'Welcome!',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontSize: 36,
+                              fontWeight: FontWeight.w800,
+                              color: textColor,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 20),
                         _label('Full Name', labelColor),
-                        _field(_nameCtrl, 'Brandon Salim', fieldBg, fieldTextColor),
+                        _field(_nameCtrl, 'Brandon Salim', fieldBg,
+                            fieldTextColor),
                         const SizedBox(height: 12),
                         _label('Email', labelColor),
-                        _field(_emailCtrl, 'your@email.com', fieldBg, fieldTextColor,
+                        _field(_emailCtrl, 'your@email.com', fieldBg,
+                            fieldTextColor,
                             keyboardType: TextInputType.emailAddress),
                         const SizedBox(height: 12),
                         _label('Password', labelColor),
-                        _field(_passCtrl, '••••••••••••', fieldBg, fieldTextColor,
+                        _field(
+                            _passCtrl, '••••••••••••', fieldBg, fieldTextColor,
                             obscure: true),
                         const SizedBox(height: 12),
                         _label('Confirm Password', labelColor),
-                        _field(_confirmCtrl, '••••••••••••', fieldBg, fieldTextColor,
+                        _field(_confirmCtrl, '••••••••••••', fieldBg,
+                            fieldTextColor,
                             obscure: true),
                         const SizedBox(height: 24),
                         SizedBox(
@@ -118,8 +125,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            _socialBtn(Icons.facebook, const Color(0xFF1877F2)),
-                            const SizedBox(width: 16),
                             _socialBtn(Icons.g_mobiledata, Colors.redAccent),
                           ],
                         ),
@@ -138,7 +143,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   color: labelColor,
                                 ),
                                 children: [
-                                  const TextSpan(text: 'Already have an account? '),
+                                  const TextSpan(
+                                      text: 'Already have an account? '),
                                   TextSpan(
                                     text: 'Log in',
                                     style: TextStyle(

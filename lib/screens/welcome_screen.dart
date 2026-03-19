@@ -25,12 +25,14 @@ class WelcomeScreen extends StatelessWidget {
           Positioned(
             top: -20,
             right: -30,
-            child: _WaveBlob(
-              color: isDark
-                  ? const Color(0xFF2A3A50)
-                  : const Color(0xFFFFF8E1),
-              width: 260,
-              height: 200,
+            child: Transform.rotate(
+              angle: 3.14,
+              child: _WaveBlob(
+                color:
+                    isDark ? const Color(0xFF2A3A50) : const Color(0xFFFFF8E1),
+                width: 260,
+                height: 200,
+              ),
             ),
           ),
           // Wavy blob bottom
@@ -38,9 +40,7 @@ class WelcomeScreen extends StatelessWidget {
             bottom: -30,
             left: -40,
             child: _WaveBlob(
-              color: isDark
-                  ? const Color(0xFF1E2D42)
-                  : const Color(0xFFFFF8E1),
+              color: isDark ? const Color(0xFF1E2D42) : const Color(0xFFFFF8E1),
               width: 220,
               height: 180,
             ),
@@ -56,6 +56,7 @@ class WelcomeScreen extends StatelessWidget {
                   const Spacer(flex: 3),
                   Text(
                     'Welcome!',
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 48,
                       fontWeight: FontWeight.w800,
@@ -65,12 +66,13 @@ class WelcomeScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     'Compare prices. Shop wiser.',
+                    textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       color: subtitleColor,
                     ),
                   ),
-                  const Spacer(flex: 2),
+                  const Spacer(flex: 1),
                   // Create Account button
                   ElevatedButton(
                     onPressed: () => Navigator.push(
@@ -163,8 +165,12 @@ class _BlobClipper extends CustomClipper<Path> {
         size.width * 0.2, 0, size.width * 0.5, size.height * 0.2);
     path.quadraticBezierTo(
         size.width * 0.8, size.height * 0.4, size.width, size.height * 0.2);
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
+
+    path.quadraticBezierTo(
+        size.width * 1.1, size.height * 0.1, size.width * 0.5, size.height);
+
+    path.quadraticBezierTo(-size.width * 0.2, size.height * 0.5,
+        size.width * -0.4, size.height * 0.5);
     path.close();
     return path;
   }
