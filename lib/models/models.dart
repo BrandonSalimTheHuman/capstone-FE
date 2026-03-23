@@ -11,11 +11,21 @@ class GroceryItem {
     required this.prices,
   });
 
-  double get cheapestPrice =>
-      prices.map((p) => p.price).reduce((a, b) => a < b ? a : b);
+  double get cheapestPrice {
+    if (prices.isEmpty) {
+      return 0;
+    }
 
-  StorePrice get cheapestStore =>
-      prices.reduce((a, b) => a.price < b.price ? a : b);
+    return prices.map((p) => p.price).reduce((a, b) => a < b ? a : b);
+  }
+
+  StorePrice? get cheapestStore {
+    if (prices.isEmpty) {
+      return null;
+    }
+
+    return prices.reduce((a, b) => a.price < b.price ? a : b);
+  }
 }
 
 class StorePrice {
@@ -53,11 +63,13 @@ class ShoppingListItem {
   final GroceryItem item;
   int quantity;
   StorePrice? selectedPrice;
+  final int? backendListItemId;
 
   ShoppingListItem({
     required this.item,
     this.quantity = 1,
     this.selectedPrice,
+    this.backendListItemId,
   });
 }
 
@@ -71,7 +83,8 @@ class SampleData {
           prices: [
             StorePrice(store: 'SuperMart', price: 3.99, logoAsset: 'supermart'),
             StorePrice(store: 'Coles', price: 4.50, logoAsset: 'coles'),
-            StorePrice(store: 'Woolworths', price: 4.20, logoAsset: 'woolworths'),
+            StorePrice(
+                store: 'Woolworths', price: 4.20, logoAsset: 'woolworths'),
           ],
         ),
         GroceryItem(
@@ -81,7 +94,8 @@ class SampleData {
           prices: [
             StorePrice(store: 'SuperMart', price: 2.99, logoAsset: 'supermart'),
             StorePrice(store: 'Coles', price: 3.50, logoAsset: 'coles'),
-            StorePrice(store: 'Woolworths', price: 3.20, logoAsset: 'woolworths'),
+            StorePrice(
+                store: 'Woolworths', price: 3.20, logoAsset: 'woolworths'),
           ],
         ),
         GroceryItem(
@@ -92,7 +106,8 @@ class SampleData {
             StorePrice(
                 store: 'Discount Grocer', price: 1.79, logoAsset: 'discount'),
             StorePrice(store: 'Coles', price: 2.20, logoAsset: 'coles'),
-            StorePrice(store: 'Woolworths', price: 2.00, logoAsset: 'woolworths'),
+            StorePrice(
+                store: 'Woolworths', price: 2.00, logoAsset: 'woolworths'),
           ],
         ),
         GroceryItem(
@@ -103,7 +118,8 @@ class SampleData {
             StorePrice(
                 store: 'Fresh Foods', price: 4.29, logoAsset: 'freshfoods'),
             StorePrice(store: 'Coles', price: 4.80, logoAsset: 'coles'),
-            StorePrice(store: 'Woolworths', price: 4.50, logoAsset: 'woolworths'),
+            StorePrice(
+                store: 'Woolworths', price: 4.50, logoAsset: 'woolworths'),
           ],
         ),
         GroceryItem(
@@ -114,7 +130,8 @@ class SampleData {
             StorePrice(
                 store: 'Fresh Foods', price: 2.49, logoAsset: 'freshfoods'),
             StorePrice(store: 'Coles', price: 2.80, logoAsset: 'coles'),
-            StorePrice(store: 'Woolworths', price: 2.60, logoAsset: 'woolworths'),
+            StorePrice(
+                store: 'Woolworths', price: 2.60, logoAsset: 'woolworths'),
           ],
         ),
         GroceryItem(
@@ -124,7 +141,8 @@ class SampleData {
           prices: [
             StorePrice(store: 'Coles', price: 4.00, logoAsset: 'coles'),
             StorePrice(store: 'Aldi', price: 3.25, logoAsset: 'aldi'),
-            StorePrice(store: 'Woolworths', price: 5.25, logoAsset: 'woolworths'),
+            StorePrice(
+                store: 'Woolworths', price: 5.25, logoAsset: 'woolworths'),
             StorePrice(store: 'IGA', price: 5.50, logoAsset: 'iga'),
           ],
         ),
@@ -135,7 +153,8 @@ class SampleData {
           prices: [
             StorePrice(store: 'Coles', price: 4.00, logoAsset: 'coles'),
             StorePrice(store: 'Aldi', price: 3.25, logoAsset: 'aldi'),
-            StorePrice(store: 'Woolworths', price: 5.00, logoAsset: 'woolworths'),
+            StorePrice(
+                store: 'Woolworths', price: 5.00, logoAsset: 'woolworths'),
             StorePrice(store: 'IGA', price: 5.50, logoAsset: 'iga'),
           ],
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
+import '../services/api_service.dart';
 import 'shopping_list_detail_screen.dart';
 
 class ListsScreen extends StatefulWidget {
@@ -13,16 +14,149 @@ class ListsScreen extends StatefulWidget {
 }
 
 class _ListsScreenState extends State<ListsScreen> {
-  List<ShoppingList> _lists = SampleData.lists;
+  final ApiService _api = ApiService();
+  static const int _guestUserId =
+      int.fromEnvironment('DEMO_USER_ID', defaultValue: 1);
+  final int _userId = _guestUserId;
+
+  List<ShoppingList> _lists = [];
+  bool _isLoading = true;
+  bool _isCreating = false;
+  String? _errorText;
+
+  Future<void> _openList(ShoppingList list) async {
+    final listId = int.tryParse(list.id);
+    if (listId == null || listId <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid list id.')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final detailed = await _api.fetchShoppingListDetail(parentListId: listId);
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.pop(context);
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ShoppingListDetailScreen(
+            list: detailed,
+            isDark: widget.isDark,
+          ),
+        ),
+      );
+      _loadLists();
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not load list items.')),
+      );
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLists();
+  }
+
+  Future<void> _loadLists() async {
+    setState(() {
+      _isLoading = true;
+      _errorText = null;
+    });
+
+    try {
+      final fetchedLists = await _api.fetchShoppingLists(userId: _userId);
+      final hydratedLists = await Future.wait(
+        fetchedLists.map((list) async {
+          final listId = int.tryParse(list.id) ?? 0;
+          if (listId <= 0) {
+            return list;
+          }
+
+          try {
+            return await _api.fetchShoppingListDetail(parentListId: listId);
+          } catch (_) {
+            return list;
+          }
+        }),
+      );
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _lists = hydratedLists;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _lists = SampleData.lists;
+        _isLoading = false;
+        _errorText =
+            'Could not load backend lists. Showing sample lists instead.';
+      });
+    }
+  }
+
+  Future<void> _createList(String name) async {
+    setState(() {
+      _isCreating = true;
+      _errorText = null;
+    });
+
+    try {
+      final created =
+          await _api.createShoppingList(userId: _userId, name: name);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _lists = [..._lists, created];
+        _isCreating = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isCreating = false;
+        _errorText = 'Failed to create list on backend.';
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Could not create list. Please try again.')),
+      );
+    }
+  }
 
   void _addList() {
     final ctrl = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: widget.isDark
-            ? AppColors.darkSurface
-            : Colors.white,
+        backgroundColor: widget.isDark ? AppColors.darkSurface : Colors.white,
         title: Text('New List',
             style: GoogleFonts.poppins(
                 color: widget.isDark ? Colors.white : Colors.black)),
@@ -39,19 +173,11 @@ class _ListsScreenState extends State<ListsScreen> {
           ),
           TextButton(
             onPressed: () {
-              if (ctrl.text.isNotEmpty) {
-                setState(() {
-                  _lists = [
-                    ..._lists,
-                    ShoppingList(
-                      id: DateTime.now().toString(),
-                      name: ctrl.text,
-                      items: [],
-                    ),
-                  ];
-                });
-              }
+              final listName = ctrl.text.trim();
               Navigator.pop(ctx);
+              if (listName.isNotEmpty) {
+                _createList(listName);
+              }
             },
             child: const Text('Create'),
           ),
@@ -63,7 +189,6 @@ class _ListsScreenState extends State<ListsScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDark;
-    final bg = isDark ? AppColors.darkBg : AppColors.lightBg;
     final textColor = isDark ? AppColors.white : AppColors.black;
     final cardBg = isDark ? AppColors.darkSurface : AppColors.lightCard;
     final subtitleColor = isDark ? Colors.white54 : Colors.black54;
@@ -90,83 +215,103 @@ class _ListsScreenState extends State<ListsScreen> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: _addList,
-                  child: Icon(Icons.add, color: textColor, size: 26),
+                  onTap: _isCreating ? null : _addList,
+                  child: _isCreating
+                      ? SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: textColor,
+                          ),
+                        )
+                      : Icon(Icons.add, color: textColor, size: 26),
                 ),
               ],
             ),
           ),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: _lists.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                final list = _lists[index];
-                final storesText = ['Aldi', 'Coles', 'Woolworths']
-                    .take(index + 1)
-                    .join(', ');
-                final totals = [7.50, 16.70, 20.50, 10.20];
-                final total =
-                    index < totals.length ? totals[index] : 0.0;
-
-                return GestureDetector(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ShoppingListDetailScreen(
-                        list: list,
-                        isDark: isDark,
-                      ),
-                    ),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.format_list_bulleted,
-                            color: AppColors.purple, size: 28),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                list.name,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: textColor,
-                                ),
-                              ),
-                              Text(
-                                storesText,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: subtitleColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          'Total: \$${total.toStringAsFixed(2)}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: textColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+          if (_errorText != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                _errorText!,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: subtitleColor,
+                ),
+              ),
             ),
+          Expanded(
+            child: _isLoading
+                ? Center(
+                    child: CircularProgressIndicator(
+                      color: isDark ? AppColors.purple : AppColors.black,
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _loadLists,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: _lists.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final list = _lists[index];
+                        final storesText = list.stores.isEmpty
+                            ? 'No stores yet'
+                            : list.stores.join(', ');
+                        final total = list.totalPrice;
+
+                        return GestureDetector(
+                          onTap: () => _openList(list),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.format_list_bulleted,
+                                    color: AppColors.purple, size: 28),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        list.name,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                      Text(
+                                        storesText,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          color: subtitleColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Text(
+                                  'Total: \$${total.toStringAsFixed(2)}',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: textColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
+import '../services/api_service.dart';
 
 class ProductScreen extends StatefulWidget {
   final GroceryItem item;
@@ -14,17 +15,63 @@ class ProductScreen extends StatefulWidget {
 }
 
 class _ProductScreenState extends State<ProductScreen> {
+  final ApiService _api = ApiService();
+  static const int _guestUserId =
+      int.fromEnvironment('DEMO_USER_ID', defaultValue: 1);
+
   int _quantity = 1;
   String? _selectedStore;
 
-  void _showAddToListDialog() {
-    showDialog(
+  Future<void> _showAddToListDialog() async {
+    final productId = int.tryParse(widget.item.id) ?? 0;
+    if (productId <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This item cannot be added yet.')),
+      );
+      return;
+    }
+
+    final selectedStoreName = _selectedStore;
+    if (selectedStoreName == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please choose a store first.')),
+      );
+      return;
+    }
+
+    if (widget.item.prices.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('No store prices available for this item.')),
+      );
+      return;
+    }
+
+    final selectedStore = widget.item.prices.firstWhere(
+      (price) => price.store == selectedStoreName,
+      orElse: () => widget.item.prices.first,
+    );
+
+    final added = await showDialog<bool>(
       context: context,
       builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: _AddToListWidget(isDark: widget.isDark),
+        child: _AddToListWidget(
+          isDark: widget.isDark,
+          api: _api,
+          userId: _guestUserId,
+          productId: productId,
+          quantity: _quantity,
+          selectedStore: selectedStore,
+        ),
       ),
     );
+
+    if (added == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Added to shopping list.')),
+      );
+    }
   }
 
   @override
@@ -135,7 +182,6 @@ class _ProductScreenState extends State<ProductScreen> {
                     // Store prices
                     ...sortedPrices.map((sp) {
                       final isSelected = _selectedStore == sp.store;
-                      final isCheapest = sp.price == sortedPrices.first.price;
                       return GestureDetector(
                         onTap: () => setState(() => _selectedStore = sp.store),
                         child: Container(
@@ -314,52 +360,247 @@ class _StoreLogoWidget extends StatelessWidget {
 
 class _AddToListWidget extends StatelessWidget {
   final bool isDark;
-  const _AddToListWidget({required this.isDark});
+  final ApiService api;
+  final int userId;
+  final int productId;
+  final int quantity;
+  final StorePrice selectedStore;
+
+  const _AddToListWidget({
+    required this.isDark,
+    required this.api,
+    required this.userId,
+    required this.productId,
+    required this.quantity,
+    required this.selectedStore,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'ADD TO EXISTING LIST',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
+    return _AddToListDialogBody(
+      isDark: isDark,
+      api: api,
+      userId: userId,
+      productId: productId,
+      quantity: quantity,
+      selectedStore: selectedStore,
+    );
+  }
+}
+
+class _AddToListDialogBody extends StatefulWidget {
+  final bool isDark;
+  final ApiService api;
+  final int userId;
+  final int productId;
+  final int quantity;
+  final StorePrice selectedStore;
+
+  const _AddToListDialogBody({
+    required this.isDark,
+    required this.api,
+    required this.userId,
+    required this.productId,
+    required this.quantity,
+    required this.selectedStore,
+  });
+
+  @override
+  State<_AddToListDialogBody> createState() => _AddToListDialogBodyState();
+}
+
+class _AddToListDialogBodyState extends State<_AddToListDialogBody> {
+  bool _isLoading = true;
+  bool _isSubmitting = false;
+  List<ShoppingList> _lists = [];
+  String? _selectedListId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLists();
+  }
+
+  Future<void> _loadLists() async {
+    setState(() => _isLoading = true);
+    try {
+      final lists = await widget.api.fetchShoppingLists(userId: widget.userId);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _lists = lists;
+        _selectedListId = lists.isNotEmpty ? lists.first.id : null;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not load your shopping lists.')),
+      );
+    }
+  }
+
+  Future<void> _createNewList() async {
+    final ctrl = TextEditingController();
+    final createdName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Create New List'),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(hintText: 'List name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
           ),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: Text(
-                'CREATE NEW LIST',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text('Create'),
           ),
         ],
       ),
+    );
+
+    final listName = createdName?.trim() ?? '';
+    if (listName.isEmpty) {
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      final created = await widget.api.createShoppingList(
+        userId: widget.userId,
+        name: listName,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _lists = [..._lists, created];
+        _selectedListId = created.id;
+        _isSubmitting = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to create list.')),
+      );
+    }
+  }
+
+  Future<void> _submit() async {
+    final listId = int.tryParse(_selectedListId ?? '');
+    if (listId == null || listId <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please choose or create a list.')),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      await widget.api.addProductToList(
+        parentListId: listId,
+        productId: widget.productId,
+        storeName: widget.selectedStore.store,
+        quantity: widget.quantity,
+      );
+
+      if (!mounted) {
+        return;
+      }
+      Navigator.pop(context, true);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not add item to list.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = widget.isDark ? Colors.white : Colors.black;
+    final bg = widget.isDark ? AppColors.darkSurface : Colors.white;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: _isLoading
+          ? const SizedBox(
+              height: 120,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Add to list (${widget.selectedStore.store})',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  key: ValueKey(_selectedListId),
+                  initialValue: _selectedListId,
+                  decoration: const InputDecoration(labelText: 'Shopping list'),
+                  items: _lists
+                      .map((list) => DropdownMenuItem<String>(
+                            value: list.id,
+                            child: Text(list.name),
+                          ))
+                      .toList(),
+                  onChanged: _isSubmitting
+                      ? null
+                      : (value) => setState(() => _selectedListId = value),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: _isSubmitting ? null : _createNewList,
+                      child: const Text('Create New List'),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed:
+                          _isSubmitting ? null : () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: _isSubmitting ? null : _submit,
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Add Item'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 }
