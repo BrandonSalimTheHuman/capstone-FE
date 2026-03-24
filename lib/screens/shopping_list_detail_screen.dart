@@ -99,6 +99,12 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
     );
   }
 
+  double _getGrandTotal() {
+    return _storeItems.values
+        .expand((items) => items)
+        .fold(0.0, (sum, item) => sum + item.price * item.quantity);
+  }
+
   Future<void> _increaseItemQuantity(String store, _ListItem item) async {
     final listItemId = item.backendListItemId;
     if (listItemId == null || listItemId <= 0) {
@@ -529,9 +535,7 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
                         ),
                       ),
                       Text(
-                        //static
-                        //'\$${_grandTotal.toStringAsFixed(2)}',
-                        '\$${"7"}',
+                        '\$${_getGrandTotal().toStringAsFixed(2)}',
                         style: GoogleFonts.poppins(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
