@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
-import 'home_screen.dart' show getItemIcon;
+import '../services/api_service.dart';
 import 'product_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -14,25 +14,95 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
+  final ApiService _api = ApiService();
   final _ctrl = TextEditingController();
-  List<GroceryItem> _results = SampleData.items;
+
+  List<GroceryItem> _allItems = [];
+  List<GroceryItem> _results = [];
+  bool _isLoading = true;
   bool _searched = false;
+  String? _errorText;
 
   @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadInitialResults();
   }
 
-  void _search(String query) {
+  Future<void> _loadInitialResults() async {
     setState(() {
-      _searched = true;
-      _results = query.isEmpty
-          ? SampleData.items
-          : SampleData.items
-              .where((i) => i.name.toLowerCase().contains(query.toLowerCase()))
-              .toList();
+      _isLoading = true;
+      _errorText = null;
     });
+
+    try {
+      final items = await _api.fetchCatalog(limit: 60);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _allItems = items;
+        _results = items;
+        _isLoading = false;
+      });
+    } catch (error) {
+      debugPrint('Initial catalog load failed: $error');
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _allItems = SampleData.items;
+        _results = SampleData.items;
+        _isLoading = false;
+        _errorText =
+            'Could not load backend data. Showing sample data instead.';
+      });
+    }
+  }
+
+  Future<void> _search(String query) async {
+    final cleanedQuery = query.trim();
+    if (cleanedQuery.isEmpty) {
+      setState(() {
+        _searched = false;
+        _results = _allItems;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorText = null;
+      _searched = true;
+    });
+
+    try {
+      final items = await _api.fetchCatalog(query: cleanedQuery, limit: 60);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _results = items;
+        _isLoading = false;
+      });
+    } catch (error) {
+      debugPrint('Search request failed for "$cleanedQuery": $error');
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _results = _allItems
+            .where((item) =>
+                item.name.toLowerCase().contains(cleanedQuery.toLowerCase()))
+            .toList();
+        _isLoading = false;
+        _errorText = 'Search API unavailable. Showing local filtered results.';
+      });
+    }
   }
 
   @override
@@ -61,28 +131,15 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                     child: TextField(
                       controller: _ctrl,
-                      autofocus: false,
-                      onChanged: _search,
                       onSubmitted: _search,
                       style:
                           GoogleFonts.poppins(fontSize: 14, color: textColor),
                       decoration: InputDecoration(
-                        hintText: 'Search for groceries...',
+                        hintText: 'Search for groceries',
                         hintStyle: GoogleFonts.poppins(
                             fontSize: 14, color: textColor.withOpacity(0.4)),
                         prefixIcon: Icon(Icons.search,
                             color: textColor.withOpacity(0.5)),
-                        suffixIcon: _ctrl.text.isNotEmpty
-                            ? IconButton(
-                                icon: Icon(Icons.clear,
-                                    color: textColor.withOpacity(0.5),
-                                    size: 18),
-                                onPressed: () {
-                                  _ctrl.clear();
-                                  _search('');
-                                },
-                              )
-                            : null,
                         border: InputBorder.none,
                         contentPadding: const EdgeInsets.symmetric(
                             vertical: 14, horizontal: 4),
@@ -93,45 +150,42 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
           ),
-          // Results count
-          if (_searched && _results.isNotEmpty)
+          if (_errorText != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '${_results.length} result${_results.length == 1 ? '' : 's'}',
-                  style: GoogleFonts.poppins(
-                      fontSize: 12, color: textColor.withOpacity(0.5)),
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                _errorText!,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: textColor.withOpacity(0.6),
                 ),
               ),
             ),
           Expanded(
-            child: _searched && _results.isEmpty
+            child: _isLoading
                 ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.search_off,
-                            size: 48, color: textColor.withOpacity(0.3)),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No results found',
-                          style: GoogleFonts.poppins(
-                              color: textColor.withOpacity(0.5), fontSize: 15),
-                        ),
-                      ],
+                    child: CircularProgressIndicator(
+                      color: isDark ? AppColors.purple : AppColors.black,
                     ),
                   )
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _results.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      return _SearchResultCard(
-                          item: _results[index], isDark: isDark);
-                    },
-                  ),
+                : _searched && _results.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No results found',
+                          style: GoogleFonts.poppins(
+                            color: textColor.withOpacity(0.5),
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _results.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final item = _results[index];
+                          return _SearchResultCard(item: item, isDark: isDark);
+                        },
+                      ),
           ),
         ],
       ),
@@ -149,11 +203,11 @@ class _SearchResultCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final cardBg = isDark ? AppColors.darkSurface : AppColors.lightCard;
     final textColor = isDark ? AppColors.white : AppColors.black;
-    final subtitleColor = isDark ? Colors.white54 : Colors.black54;
 
+    // Sort prices to find cheapest
     final sortedPrices = [...item.prices]
       ..sort((a, b) => a.price.compareTo(b.price));
-    final cheapestPrice = sortedPrices.first.price;
+    final hasPrices = sortedPrices.isNotEmpty;
 
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -170,7 +224,6 @@ class _SearchResultCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Product image/icon
             Container(
               width: 64,
               height: 80,
@@ -178,11 +231,8 @@ class _SearchResultCard extends StatelessWidget {
                 color: isDark ? Colors.white10 : Colors.white.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(
-                getItemIcon(item.imageUrl),
-                size: 32,
-                color: isDark ? Colors.white38 : Colors.black26,
-              ),
+              child: Icon(Icons.local_drink_outlined,
+                  size: 36, color: isDark ? Colors.white38 : Colors.black26),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -196,38 +246,47 @@ class _SearchResultCard extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                       color: textColor,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 10),
-                  // Store price row
-                  Row(
-                    children: sortedPrices.take(4).map((sp) {
-                      final isCheapest = sp.price == cheapestPrice;
-                      return Expanded(
-                        child: Column(
-                          children: [
-                            _StoreLogoSmall(store: sp.store, size: 30),
-                            const SizedBox(height: 4),
-                            Text(
-                              '\$${sp.price.toStringAsFixed(2)}',
-                              style: GoogleFonts.poppins(
-                                fontSize: 11,
-                                fontWeight: isCheapest
-                                    ? FontWeight.w700
-                                    : FontWeight.w400,
-                                color: isCheapest
-                                    ? (isDark
-                                        ? AppColors.purpleLight
-                                        : Colors.green.shade700)
-                                    : textColor,
+                  if (!hasPrices)
+                    Text(
+                      'No prices available',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: textColor.withOpacity(0.6),
+                      ),
+                    )
+                  else
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        ...sortedPrices.take(4).map((sp) {
+                          final isCheapest =
+                              sp.price == sortedPrices.first.price;
+                          return Column(
+                            children: [
+                              _storeLogo(sp.store, 28),
+                              const SizedBox(height: 4),
+                              Text(
+                                '\$${sp.price.toStringAsFixed(2)}',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: isCheapest
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
+                                  color: textColor,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
+                            ],
+                          );
+                        }),
+                        if (sortedPrices.length < 4)
+                          ...List.generate(
+                            4 - sortedPrices.length,
+                            (index) => const SizedBox(width: 28),
+                          ),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -236,16 +295,8 @@ class _SearchResultCard extends StatelessWidget {
       ),
     );
   }
-}
 
-class _StoreLogoSmall extends StatelessWidget {
-  final String store;
-  final double size;
-
-  const _StoreLogoSmall({required this.store, required this.size});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _storeLogo(String store, double size) {
     Color color;
     String letter;
     switch (store.toLowerCase()) {
@@ -262,29 +313,23 @@ class _StoreLogoSmall extends StatelessWidget {
         letter = 'A';
         break;
       case 'iga':
-        color = Colors.red.shade700;
+        color = Colors.red;
         letter = 'I';
         break;
       default:
         color = Colors.grey;
-        letter = store[0].toUpperCase();
+        letter = store[0];
     }
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(6),
-      ),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       child: Center(
-        child: Text(
-          letter,
-          style: GoogleFonts.poppins(
-            color: Colors.white,
-            fontSize: size * 0.42,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        child: Text(letter,
+            style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontSize: size * 0.45,
+                fontWeight: FontWeight.w700)),
       ),
     );
   }

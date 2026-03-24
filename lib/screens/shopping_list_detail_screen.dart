@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
+import '../services/api_service.dart';
+import 'product_screen.dart';
 
 class ShoppingListDetailScreen extends StatefulWidget {
   final ShoppingList list;
@@ -20,33 +22,68 @@ class ShoppingListDetailScreen extends StatefulWidget {
 
 class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
     with SingleTickerProviderStateMixin {
+  final ApiService _api = ApiService();
   late TabController _tabController;
-  final List<String> _stores = ['Aldi', 'Coles', 'Woolworths'];
-
-  // Sample items per store tab (replace with real data from ShoppingList.items)
-  final Map<String, List<_ListItem>> _storeItems = {
-    'Aldi': [
-      _ListItem(name: 'Apples', price: 2.50, quantity: 2, emoji: '🍎'),
-      _ListItem(name: 'Bananas', price: 2.49, quantity: 1, emoji: '🍌'),
-      _ListItem(name: 'Whole Milk 2L', price: 3.99, quantity: 1, emoji: '🥛'),
-    ],
-    'Coles': [
-      _ListItem(name: 'Orange Juice 1L', price: 4.50, quantity: 1, emoji: '🍊'),
-      _ListItem(name: 'Pepsi | 250ml', price: 2.00, quantity: 2, emoji: '🥤'),
-      _ListItem(name: 'Bread', price: 3.20, quantity: 1, emoji: '🍞'),
-    ],
-    'Woolworths': [
-      _ListItem(name: 'Whole Milk 2L', price: 4.20, quantity: 1, emoji: '🥛'),
-      _ListItem(name: 'Chicken Breast', price: 8.50, quantity: 1, emoji: '🍗'),
-      _ListItem(name: 'Avocado', price: 4.50, quantity: 2, emoji: '🥑'),
-    ],
-  };
+  late List<String> _stores;
+  late Map<String, List<_ListItem>> _storeItems;
+  final Set<int> _updatingItemIds = <int>{};
 
   @override
   void initState() {
     super.initState();
+
+    _storeItems = _buildStoreItems();
+    _stores = _storeItems.keys.toList();
+    if (_stores.isEmpty) {
+      _stores = ['All Items'];
+      _storeItems = {'All Items': []};
+    }
+
     _tabController = TabController(length: _stores.length, vsync: this);
     _tabController.addListener(() => setState(() {}));
+  }
+
+  Map<String, List<_ListItem>> _buildStoreItems() {
+    final grouped = <String, List<_ListItem>>{};
+
+    for (final shoppingItem in widget.list.items) {
+      final store = shoppingItem.selectedPrice?.store ?? 'Unassigned';
+      final unitPrice = shoppingItem.selectedPrice?.price ?? 0;
+
+      grouped.putIfAbsent(store, () => []);
+      grouped[store]!.add(
+        _ListItem(
+          item: shoppingItem.item,
+          backendListItemId: shoppingItem.backendListItemId,
+          name: shoppingItem.item.name,
+          price: unitPrice,
+          quantity: shoppingItem.quantity,
+          emoji: _emojiForItem(shoppingItem.item.name),
+        ),
+      );
+    }
+
+    return grouped;
+  }
+
+  String _emojiForItem(String name) {
+    final lower = name.toLowerCase();
+    if (lower.contains('milk')) {
+      return '🥛';
+    }
+    if (lower.contains('bread')) {
+      return '🍞';
+    }
+    if (lower.contains('banana')) {
+      return '🍌';
+    }
+    if (lower.contains('apple')) {
+      return '🍎';
+    }
+    if (lower.contains('drink') || lower.contains('coca')) {
+      return '🥤';
+    }
+    return '🛒';
   }
 
   @override
@@ -62,8 +99,112 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
     );
   }
 
-  double get _grandTotal =>
-      _stores.fold(0.0, (s, store) => s + _getStoreTotal(store));
+  Future<void> _increaseItemQuantity(String store, _ListItem item) async {
+    final listItemId = item.backendListItemId;
+    if (listItemId == null || listItemId <= 0) {
+      setState(() => item.quantity++);
+      return;
+    }
+
+    if (_updatingItemIds.contains(listItemId)) {
+      return;
+    }
+
+    setState(() {
+      _updatingItemIds.add(listItemId);
+      item.quantity++;
+    });
+
+    try {
+      await _api.updateListItemQuantity(
+        listItemId: listItemId,
+        quantity: item.quantity,
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() => item.quantity--);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update item quantity.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _updatingItemIds.remove(listItemId));
+      }
+    }
+  }
+
+  Future<void> _decreaseItemQuantity(String store, _ListItem item) async {
+    final listItemId = item.backendListItemId;
+    if (listItemId == null || listItemId <= 0) {
+      setState(() {
+        if (item.quantity > 1) {
+          item.quantity--;
+          return;
+        }
+        _storeItems[store]?.remove(item);
+      });
+      return;
+    }
+
+    if (_updatingItemIds.contains(listItemId)) {
+      return;
+    }
+
+    if (item.quantity > 1) {
+      setState(() {
+        _updatingItemIds.add(listItemId);
+        item.quantity--;
+      });
+
+      try {
+        await _api.updateListItemQuantity(
+          listItemId: listItemId,
+          quantity: item.quantity,
+        );
+      } catch (_) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() => item.quantity++);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update item quantity.')),
+        );
+      } finally {
+        if (mounted) {
+          setState(() => _updatingItemIds.remove(listItemId));
+        }
+      }
+      return;
+    }
+
+    setState(() => _updatingItemIds.add(listItemId));
+    try {
+      await _api.deleteListItem(listItemId: listItemId);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _storeItems[store]?.remove(item);
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not remove item from list.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _updatingItemIds.remove(listItemId));
+      }
+    }
+  }
 
   void _showShareOptions() {
     showModalBottomSheet(
@@ -223,9 +364,7 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
               labelColor: textColor,
               unselectedLabelColor: textColor.withOpacity(0.4),
               labelStyle: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+                  fontSize: 13, fontWeight: FontWeight.w600),
               unselectedLabelStyle: GoogleFonts.poppins(fontSize: 13),
               indicatorColor: activeTabColor,
               indicatorWeight: 2.5,
@@ -240,9 +379,10 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
                   if (items.isEmpty) {
                     return Center(
                       child: Text(
-                        'No items for $store',
+                        'No items in this list yet.',
                         style: GoogleFonts.poppins(
-                          color: textColor.withOpacity(0.4),
+                          color: textColor.withOpacity(0.6),
+                          fontSize: 14,
                         ),
                       ),
                     );
@@ -253,90 +393,93 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final item = items[index];
-                      return Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: cardBg,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 52,
-                              height: 52,
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.white10
-                                    : Colors.white.withOpacity(0.6),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  item.emoji,
-                                  style: const TextStyle(fontSize: 26),
-                                ),
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ProductScreen(
+                                item: item.item,
+                                isDark: isDark,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: cardBg,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: isDark
+                                      ? Colors.white10
+                                      : Colors.white.withOpacity(0.6),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Center(
+                                  child: Text(item.emoji,
+                                      style: const TextStyle(fontSize: 28)),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${item.name} - \$${item.price.toStringAsFixed(2)}',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: textColor,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${item.quantity} ${item.quantity == 1 ? 'item' : 'items'}',
+                                      style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          color: textColor.withOpacity(0.5)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Quantity controls
+                              Row(
                                 children: [
-                                  Text(
-                                    item.name,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: textColor,
+                                  _QBtn(
+                                    icon: Icons.remove,
+                                    isDark: isDark,
+                                    onTap: () =>
+                                        _decreaseItemQuantity(store, item),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10),
+                                    child: Text(
+                                      '${item.quantity}',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: textColor,
+                                      ),
                                     ),
                                   ),
-                                  Text(
-                                    '\$${item.price.toStringAsFixed(2)} each',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 12,
-                                      color: textColor.withOpacity(0.5),
-                                    ),
+                                  _QBtn(
+                                    icon: Icons.add,
+                                    isDark: isDark,
+                                    onTap: () =>
+                                        _increaseItemQuantity(store, item),
                                   ),
                                 ],
                               ),
-                            ),
-                            // Quantity controls
-                            Row(
-                              children: [
-                                _QBtn(
-                                  icon: Icons.remove,
-                                  isDark: isDark,
-                                  onTap: () {
-                                    setState(() {
-                                      if (item.quantity > 1) {
-                                        item.quantity--;
-                                      } else {
-                                        items.removeAt(index);
-                                      }
-                                    });
-                                  },
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                  ),
-                                  child: Text(
-                                    '${item.quantity}',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: textColor,
-                                    ),
-                                  ),
-                                ),
-                                _QBtn(
-                                  icon: Icons.add,
-                                  isDark: isDark,
-                                  onTap: () => setState(() => item.quantity++),
-                                ),
-                              ],
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       );
                     },
@@ -386,7 +529,9 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
                         ),
                       ),
                       Text(
-                        '\$${_grandTotal.toStringAsFixed(2)}',
+                        //static
+                        //'\$${_grandTotal.toStringAsFixed(2)}',
+                        '\$${"7"}',
                         style: GoogleFonts.poppins(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -424,19 +569,24 @@ class _QBtn extends StatelessWidget {
           color: isDark ? AppColors.purple : Colors.black,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: Colors.white, size: 16),
+        child:
+            Icon(icon, color: isDark ? Colors.black : Colors.white, size: 18),
       ),
     );
   }
 }
 
 class _ListItem {
+  final GroceryItem item;
+  final int? backendListItemId;
   final String name;
   final double price;
   int quantity;
   final String emoji;
 
   _ListItem({
+    required this.item,
+    this.backendListItemId,
     required this.name,
     required this.price,
     required this.quantity,

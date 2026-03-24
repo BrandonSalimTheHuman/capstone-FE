@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
-import 'home_screen.dart' show getItemIcon;
+import '../services/api_service.dart';
 
 class ProductScreen extends StatefulWidget {
   final GroceryItem item;
@@ -15,104 +15,63 @@ class ProductScreen extends StatefulWidget {
 }
 
 class _ProductScreenState extends State<ProductScreen> {
+  final ApiService _api = ApiService();
+  static const int _guestUserId =
+      int.fromEnvironment('DEMO_USER_ID', defaultValue: 1);
+
   int _quantity = 1;
   String? _selectedStore;
 
-  void _showAddToListDialog() {
-    final isDark = widget.isDark;
-    final bg = isDark ? AppColors.darkSurface : Colors.white;
-    final textColor = isDark ? AppColors.white : AppColors.black;
-    final btnColor = isDark ? AppColors.purple : AppColors.black;
+  Future<void> _showAddToListDialog() async {
+    final productId = int.tryParse(widget.item.id) ?? 0;
+    if (productId <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This item cannot be added yet.')),
+      );
+      return;
+    }
 
-    showModalBottomSheet(
+    final selectedStoreName = _selectedStore;
+    if (selectedStoreName == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please choose a store first.')),
+      );
+      return;
+    }
+
+    if (widget.item.prices.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('No store prices available for this item.')),
+      );
+      return;
+    }
+
+    final selectedStore = widget.item.prices.firstWhere(
+      (price) => price.store == selectedStoreName,
+      orElse: () => widget.item.prices.first,
+    );
+
+    final added = await showDialog<bool>(
       context: context,
-      backgroundColor: bg,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: textColor.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            Text(
-              'Add to list',
-              style: GoogleFonts.poppins(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: textColor,
-              ),
-            ),
-            if (_selectedStore == null)
-              Padding(
-                padding: const EdgeInsets.only(top: 4, bottom: 16),
-                child: Text(
-                  'Select a store above first to set the price',
-                  style: GoogleFonts.poppins(
-                      fontSize: 13, color: textColor.withOpacity(0.5)),
-                ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.only(top: 4, bottom: 16),
-                child: Text(
-                  'Adding ${widget.item.name} × $_quantity from $_selectedStore',
-                  style: GoogleFonts.poppins(
-                      fontSize: 13, color: textColor.withOpacity(0.6)),
-                ),
-              ),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: textColor,
-                      side: BorderSide(color: textColor.withOpacity(0.3)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text('Existing List',
-                        style: GoogleFonts.poppins(
-                            fontSize: 14, fontWeight: FontWeight.w500)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: btnColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text('New List',
-                        style: GoogleFonts.poppins(
-                            fontSize: 14, fontWeight: FontWeight.w600)),
-                  ),
-                ),
-              ],
-            ),
-          ],
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: _AddToListWidget(
+          isDark: widget.isDark,
+          api: _api,
+          userId: _guestUserId,
+          productId: productId,
+          quantity: _quantity,
+          selectedStore: selectedStore,
         ),
       ),
     );
+
+    if (added == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Added to shopping list.')),
+      );
+    }
   }
 
   @override
@@ -123,9 +82,9 @@ class _ProductScreenState extends State<ProductScreen> {
     final cardBg = isDark ? AppColors.darkSurface : AppColors.lightCard;
     final imgBg = isDark ? AppColors.darkSurface : AppColors.lightBgDeep;
 
+    // Sort prices by cheapest
     final sortedPrices = [...widget.item.prices]
       ..sort((a, b) => a.price.compareTo(b.price));
-    final cheapestPrice = sortedPrices.first.price;
 
     return Scaffold(
       backgroundColor: bg,
@@ -134,20 +93,15 @@ class _ProductScreenState extends State<ProductScreen> {
           // Product image area
           Container(
             color: imgBg,
-            height: 260,
+            height: 280,
             width: double.infinity,
             child: Stack(
               children: [
                 Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        getItemIcon(widget.item.imageUrl),
-                        size: 100,
-                        color: isDark ? Colors.white24 : Colors.black12,
-                      ),
-                    ],
+                  child: Icon(
+                    Icons.local_drink_outlined,
+                    size: 120,
+                    color: isDark ? Colors.white24 : Colors.black12,
                   ),
                 ),
                 SafeArea(
@@ -175,184 +129,147 @@ class _ProductScreenState extends State<ProductScreen> {
           ),
           // Details
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.item.name,
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: textColor,
+            child: Container(
+              color: bg,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.item.name,
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Quantity control
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    const SizedBox(height: 12),
+                    // Quantity control
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Quantity',
+                        Text('Quantity:',
                             style: GoogleFonts.poppins(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
-                                color: textColor)),
-                        Row(
-                          children: [
-                            _QuantityButton(
-                              icon: Icons.remove,
-                              onTap: () {
-                                if (_quantity > 1) {
-                                  setState(() => _quantity--);
-                                }
-                              },
-                              isDark: isDark,
-                            ),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 20),
-                              child: Text(
-                                '$_quantity',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: textColor),
-                              ),
-                            ),
-                            _QuantityButton(
-                              icon: Icons.add,
-                              onTap: () => setState(() => _quantity++),
-                              isDark: isDark,
-                            ),
-                          ],
+                                fontSize: 15, color: textColor)),
+                        const SizedBox(width: 16),
+                        _QuantityButton(
+                          icon: Icons.remove,
+                          onTap: () {
+                            if (_quantity > 1) setState(() => _quantity--);
+                          },
+                          isDark: isDark,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            '$_quantity',
+                            style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: textColor),
+                          ),
+                        ),
+                        _QuantityButton(
+                          icon: Icons.add,
+                          onTap: () => setState(() => _quantity++),
+                          isDark: isDark,
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Compare prices',
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  // Store prices
-                  ...sortedPrices.map((sp) {
-                    final isSelected = _selectedStore == sp.store;
-                    final isCheapest = sp.price == cheapestPrice;
-                    return GestureDetector(
-                      onTap: () => setState(() => _selectedStore = sp.store),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: cardBg,
-                          borderRadius: BorderRadius.circular(12),
-                          border: isSelected
-                              ? Border.all(
-                                  color:
-                                      isDark ? AppColors.purple : Colors.black,
-                                  width: 2)
-                              : null,
-                        ),
-                        child: Row(
-                          children: [
-                            _StoreLogoWidget(store: sp.store, size: 40),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    sp.store,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color: textColor,
+                    const SizedBox(height: 16),
+                    // Store prices
+                    ...sortedPrices.map((sp) {
+                      final isSelected = _selectedStore == sp.store;
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedStore = sp.store),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: cardBg,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              _StoreLogoWidget(store: sp.store, size: 40),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      sp.store,
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: textColor,
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Text(
-                              '\$${sp.price.toStringAsFixed(2)}',
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: isCheapest
-                                    ? (isDark
-                                        ? AppColors.purpleLight
-                                        : Colors.green.shade700)
-                                    : textColor,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            // Selection checkbox
-                            Container(
-                              width: 26,
-                              height: 26,
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? (isDark ? AppColors.purple : Colors.black)
-                                    : Colors.transparent,
-                                border: Border.all(
-                                  color: isSelected
-                                      ? (isDark
-                                          ? AppColors.purple
-                                          : Colors.black)
-                                      : textColor.withOpacity(0.3),
-                                  width: 2,
+                                    Text(
+                                      '\$${sp.price.toStringAsFixed(2)}',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 13,
+                                        color: textColor.withOpacity(0.7),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                borderRadius: BorderRadius.circular(6),
                               ),
-                              child: isSelected
-                                  ? const Icon(Icons.check,
-                                      color: Colors.white, size: 16)
-                                  : null,
-                            ),
-                          ],
+                              // Checkbox
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppColors.purple
+                                      : Colors.transparent,
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.purple
+                                        : textColor.withOpacity(0.4),
+                                    width: 2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: isSelected
+                                    ? const Icon(Icons.check,
+                                        color: Colors.white, size: 18)
+                                    : null,
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 16),
-                  // Add to shopping list button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _showAddToListDialog,
-                      icon: const Icon(Icons.add_shopping_cart_outlined,
-                          size: 20),
-                      label: Text(
-                        'Add to shopping list',
-                        style: GoogleFonts.poppins(
-                            fontSize: 15, fontWeight: FontWeight.w600),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            isDark ? AppColors.purple : AppColors.black,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(32),
+                      );
+                    }),
+                    const SizedBox(height: 12),
+                    // Add to shopping list button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _showAddToListDialog,
+                        icon: const Icon(Icons.add, size: 20),
+                        label: Text(
+                          'Add to shopping list',
+                          style: GoogleFonts.poppins(
+                              fontSize: 15, fontWeight: FontWeight.w600),
                         ),
-                        elevation: 0,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              isDark ? AppColors.darkCard : AppColors.lightCard,
+                          foregroundColor: textColor,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(32),
+                          ),
+                          elevation: 0,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -378,10 +295,11 @@ class _QuantityButton extends StatelessWidget {
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: isDark ? AppColors.purple : Colors.black,
+          color: isDark ? Colors.white : Colors.black,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: Colors.white, size: 20),
+        child:
+            Icon(icon, color: isDark ? Colors.black : Colors.white, size: 20),
       ),
     );
   }
@@ -436,6 +354,253 @@ class _StoreLogoWidget extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AddToListWidget extends StatelessWidget {
+  final bool isDark;
+  final ApiService api;
+  final int userId;
+  final int productId;
+  final int quantity;
+  final StorePrice selectedStore;
+
+  const _AddToListWidget({
+    required this.isDark,
+    required this.api,
+    required this.userId,
+    required this.productId,
+    required this.quantity,
+    required this.selectedStore,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _AddToListDialogBody(
+      isDark: isDark,
+      api: api,
+      userId: userId,
+      productId: productId,
+      quantity: quantity,
+      selectedStore: selectedStore,
+    );
+  }
+}
+
+class _AddToListDialogBody extends StatefulWidget {
+  final bool isDark;
+  final ApiService api;
+  final int userId;
+  final int productId;
+  final int quantity;
+  final StorePrice selectedStore;
+
+  const _AddToListDialogBody({
+    required this.isDark,
+    required this.api,
+    required this.userId,
+    required this.productId,
+    required this.quantity,
+    required this.selectedStore,
+  });
+
+  @override
+  State<_AddToListDialogBody> createState() => _AddToListDialogBodyState();
+}
+
+class _AddToListDialogBodyState extends State<_AddToListDialogBody> {
+  bool _isLoading = true;
+  bool _isSubmitting = false;
+  List<ShoppingList> _lists = [];
+  String? _selectedListId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLists();
+  }
+
+  Future<void> _loadLists() async {
+    setState(() => _isLoading = true);
+    try {
+      final lists = await widget.api.fetchShoppingLists(userId: widget.userId);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _lists = lists;
+        _selectedListId = lists.isNotEmpty ? lists.first.id : null;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not load your shopping lists.')),
+      );
+    }
+  }
+
+  Future<void> _createNewList() async {
+    final ctrl = TextEditingController();
+    final createdName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Create New List'),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(hintText: 'List name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+
+    final listName = createdName?.trim() ?? '';
+    if (listName.isEmpty) {
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      final created = await widget.api.createShoppingList(
+        userId: widget.userId,
+        name: listName,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _lists = [..._lists, created];
+        _selectedListId = created.id;
+        _isSubmitting = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to create list.')),
+      );
+    }
+  }
+
+  Future<void> _submit() async {
+    final listId = int.tryParse(_selectedListId ?? '');
+    if (listId == null || listId <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please choose or create a list.')),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      await widget.api.addProductToList(
+        parentListId: listId,
+        productId: widget.productId,
+        storeName: widget.selectedStore.store,
+        quantity: widget.quantity,
+      );
+
+      if (!mounted) {
+        return;
+      }
+      Navigator.pop(context, true);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not add item to list.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = widget.isDark ? Colors.white : Colors.black;
+    final bg = widget.isDark ? AppColors.darkSurface : Colors.white;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: _isLoading
+          ? const SizedBox(
+              height: 120,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Add to list (${widget.selectedStore.store})',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: textColor,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  key: ValueKey(_selectedListId),
+                  initialValue: _selectedListId,
+                  decoration: const InputDecoration(labelText: 'Shopping list'),
+                  items: _lists
+                      .map((list) => DropdownMenuItem<String>(
+                            value: list.id,
+                            child: Text(list.name),
+                          ))
+                      .toList(),
+                  onChanged: _isSubmitting
+                      ? null
+                      : (value) => setState(() => _selectedListId = value),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    TextButton(
+                      onPressed: _isSubmitting ? null : _createNewList,
+                      child: const Text('Create New List'),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed:
+                          _isSubmitting ? null : () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: _isSubmitting ? null : _submit,
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Add Item'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 }

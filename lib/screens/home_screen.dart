@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/models.dart';
+import '../services/api_service.dart';
 import 'search_screen.dart';
 import 'lists_screen.dart';
 import 'settings_screen.dart';
@@ -139,14 +140,62 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-class _HomeTab extends StatelessWidget {
+class _HomeTab extends StatefulWidget {
   final bool isDark;
   final Function(bool) onThemeChanged;
 
   const _HomeTab({required this.isDark, required this.onThemeChanged});
 
   @override
+  State<_HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<_HomeTab> {
+  final ApiService _api = ApiService();
+
+  bool _isLoading = true;
+  String? _errorText;
+  List<GroceryItem> _items = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadItems();
+  }
+
+  Future<void> _loadItems() async {
+    setState(() {
+      _isLoading = true;
+      _errorText = null;
+    });
+
+    try {
+      final fetchedItems = await _api.fetchCatalog(limit: 40);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _items = fetchedItems;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _items = SampleData.items;
+        _isLoading = false;
+        _errorText =
+            'Could not load backend data. Showing sample data instead.';
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isDark = widget.isDark;
     final textColor = isDark ? AppColors.white : AppColors.black;
     final searchBg = isDark ? AppColors.darkCard : AppColors.lightCard;
     final cardBg = isDark ? AppColors.darkSurface : AppColors.lightCard;
@@ -187,7 +236,7 @@ class _HomeTab extends StatelessWidget {
                     MaterialPageRoute(
                       builder: (_) => SettingsScreen(
                         isDark: isDark,
-                        onThemeChanged: onThemeChanged,
+                        onThemeChanged: widget.onThemeChanged,
                       ),
                     ),
                   ),
@@ -201,138 +250,125 @@ class _HomeTab extends StatelessWidget {
           // Search bar — tappable, navigates to SearchScreen
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: GestureDetector(
-              onTap: () {
-                // Find parent HomeScreen state and switch to Search tab
-                final homeState =
-                    context.findAncestorStateOfType<_HomeScreenState>();
-                homeState?.setState(() => homeState._selectedIndex = 1);
-              },
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: searchBg,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.search, color: subtitleColor, size: 20),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Search for groceries...',
-                      style: GoogleFonts.poppins(
-                          fontSize: 14, color: subtitleColor),
-                    ),
-                  ],
-                ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: searchBg,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.search, color: subtitleColor, size: 20),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Search for groceries',
+                    style:
+                        GoogleFonts.poppins(fontSize: 14, color: subtitleColor),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          // Section label
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Popular items',
-                style: GoogleFonts.poppins(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                ),
-              ),
-            ),
-          ),
-          // Grocery list
-          Expanded(
-            child: ListView.separated(
+          const SizedBox(height: 16),
+          if (_errorText != null)
+            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: SampleData.items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                final item = SampleData.items[index];
-                return GestureDetector(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ProductScreen(item: item, isDark: isDark),
-                    ),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? Colors.white10
-                                : Colors.white.withOpacity(0.6),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            getItemIcon(item.imageUrl),
-                            size: 28,
-                            color: isDark ? Colors.white60 : Colors.black45,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.name,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: textColor,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              RichText(
-                                text: TextSpan(
-                                  style: GoogleFonts.poppins(
-                                      fontSize: 12, color: subtitleColor),
-                                  children: [
-                                    const TextSpan(text: 'From '),
-                                    TextSpan(
-                                      text:
-                                          '\$${item.cheapestPrice.toStringAsFixed(2)}',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: isDark
-                                            ? AppColors.purpleLight
-                                            : Colors.green.shade700,
-                                      ),
-                                    ),
-                                    TextSpan(
-                                        text:
-                                            ' at ${item.cheapestStore.store}'),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(Icons.chevron_right,
-                            color: subtitleColor, size: 22),
-                      ],
-                    ),
-                  ),
-                );
-              },
+              child: Text(
+                _errorText!,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: subtitleColor,
+                ),
+              ),
             ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _isLoading
+                ? Center(
+                    child: CircularProgressIndicator(
+                      color: isDark ? AppColors.purple : AppColors.black,
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _loadItems,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: _items.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final item = _items[index];
+                        final cheapestStore = item.cheapestStore;
+                        final priceLabel = cheapestStore == null
+                            ? 'No prices available yet'
+                            : 'Cheapest: \$${item.cheapestPrice.toStringAsFixed(2)} at ${cheapestStore.store}';
+
+                        return GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ProductScreen(item: item, isDark: isDark),
+                            ),
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white10
+                                        : Colors.white.withOpacity(0.6),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(
+                                    _getItemIcon(item.imageUrl),
+                                    size: 32,
+                                    color: isDark
+                                        ? Colors.white54
+                                        : Colors.black45,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.name,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600,
+                                          color: textColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        priceLabel,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          color: subtitleColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(Icons.chevron_right,
+                                    color: subtitleColor, size: 22),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
@@ -340,8 +376,7 @@ class _HomeTab extends StatelessWidget {
   }
 }
 
-/// Shared helper — used by home and search screens
-IconData getItemIcon(String key) {
+IconData _getItemIcon(String key) {
   switch (key) {
     case 'milk':
       return Icons.water_drop_outlined;
@@ -357,6 +392,6 @@ IconData getItemIcon(String key) {
     case 'coke_zero':
       return Icons.local_drink_outlined;
     default:
-      return Icons.shopping_basket_outlined;
+      return Icons.fastfood;
   }
 }
