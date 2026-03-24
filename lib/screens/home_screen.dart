@@ -18,7 +18,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   late bool _isDark;
-  final _searchCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -81,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 _NavItem(
                   icon: Icons.shopping_cart_outlined,
-                  label: 'List',
+                  label: 'My Lists',
                   isActive: _selectedIndex == 2,
                   activeColor: activeColor,
                   inactiveColor: inactiveColor,
@@ -118,21 +117,23 @@ class _NavItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon,
-              color: isActive ? activeColor : inactiveColor, size: 26),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 11,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-              color: isActive ? activeColor : inactiveColor,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: isActive ? activeColor : inactiveColor, size: 26),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                color: isActive ? activeColor : inactiveColor,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -146,7 +147,6 @@ class _HomeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = isDark ? AppColors.darkBg : AppColors.lightBg;
     final textColor = isDark ? AppColors.white : AppColors.black;
     final searchBg = isDark ? AppColors.darkCard : AppColors.lightCard;
     final cardBg = isDark ? AppColors.darkSurface : AppColors.lightCard;
@@ -157,17 +157,29 @@ class _HomeTab extends StatelessWidget {
         children: [
           // Header
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Welcome, Brandon',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hello, Brandon 👋',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: textColor,
+                      ),
+                    ),
+                    Text(
+                      'Find the best grocery deals',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: subtitleColor,
+                      ),
+                    ),
+                  ],
                 ),
                 GestureDetector(
                   onTap: () => Navigator.push(
@@ -186,29 +198,53 @@ class _HomeTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          // Search bar
+          // Search bar — tappable, navigates to SearchScreen
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: searchBg,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.search, color: subtitleColor, size: 20),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Search for groceries',
-                    style: GoogleFonts.poppins(
-                        fontSize: 14, color: subtitleColor),
-                  ),
-                ],
+            child: GestureDetector(
+              onTap: () {
+                // Find parent HomeScreen state and switch to Search tab
+                final homeState =
+                    context.findAncestorStateOfType<_HomeScreenState>();
+                homeState?.setState(() => homeState._selectedIndex = 1);
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: searchBg,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.search, color: subtitleColor, size: 20),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Search for groceries...',
+                      style: GoogleFonts.poppins(
+                          fontSize: 14, color: subtitleColor),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          // Section label
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Popular items',
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
+              ),
+            ),
+          ),
           // Grocery list
           Expanded(
             child: ListView.separated(
@@ -221,8 +257,7 @@ class _HomeTab extends StatelessWidget {
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          ProductScreen(item: item, isDark: isDark),
+                      builder: (_) => ProductScreen(item: item, isDark: isDark),
                     ),
                   ),
                   child: Container(
@@ -234,8 +269,8 @@ class _HomeTab extends StatelessWidget {
                     child: Row(
                       children: [
                         Container(
-                          width: 60,
-                          height: 60,
+                          width: 56,
+                          height: 56,
                           decoration: BoxDecoration(
                             color: isDark
                                 ? Colors.white10
@@ -243,9 +278,9 @@ class _HomeTab extends StatelessWidget {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
-                            _getItemIcon(item.imageUrl),
-                            size: 32,
-                            color: isDark ? Colors.white54 : Colors.black45,
+                            getItemIcon(item.imageUrl),
+                            size: 28,
+                            color: isDark ? Colors.white60 : Colors.black45,
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -256,17 +291,35 @@ class _HomeTab extends StatelessWidget {
                               Text(
                                 item.name,
                                 style: GoogleFonts.poppins(
-                                  fontSize: 15,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   color: textColor,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 2),
-                              Text(
-                                'Cheapest: \$${item.cheapestPrice.toStringAsFixed(2)} at ${item.cheapestStore.store}',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: subtitleColor,
+                              RichText(
+                                text: TextSpan(
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 12, color: subtitleColor),
+                                  children: [
+                                    const TextSpan(text: 'From '),
+                                    TextSpan(
+                                      text:
+                                          '\$${item.cheapestPrice.toStringAsFixed(2)}',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark
+                                            ? AppColors.purpleLight
+                                            : Colors.green.shade700,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                        text:
+                                            ' at ${item.cheapestStore.store}'),
+                                  ],
                                 ),
                               ),
                             ],
@@ -285,17 +338,25 @@ class _HomeTab extends StatelessWidget {
       ),
     );
   }
+}
 
-  IconData _getItemIcon(String key) {
-    switch (key) {
-      case 'milk': return Icons.water_drop_outlined;
-      case 'chicken': return Icons.set_meal;
-      case 'tomatoes': return Icons.lunch_dining;
-      case 'avocado': return Icons.eco;
-      case 'bananas': return Icons.grass;
-      case 'coke':
-      case 'coke_zero': return Icons.local_drink_outlined;
-      default: return Icons.fastfood;
-    }
+/// Shared helper — used by home and search screens
+IconData getItemIcon(String key) {
+  switch (key) {
+    case 'milk':
+      return Icons.water_drop_outlined;
+    case 'chicken':
+      return Icons.set_meal;
+    case 'tomatoes':
+      return Icons.lunch_dining;
+    case 'avocado':
+      return Icons.eco;
+    case 'bananas':
+      return Icons.grass;
+    case 'coke':
+    case 'coke_zero':
+      return Icons.local_drink_outlined;
+    default:
+      return Icons.shopping_basket_outlined;
   }
 }

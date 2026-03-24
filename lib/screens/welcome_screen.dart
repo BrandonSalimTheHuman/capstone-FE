@@ -29,7 +29,7 @@ class WelcomeScreen extends StatelessWidget {
               angle: 3.14,
               child: _WaveBlob(
                 color:
-                    isDark ? const Color(0xFF2A3A50) : const Color(0xFFFFF8E1),
+                    isDark ? const Color(0xFF2A3A50) : const Color(0xFFFFFFFF),
                 width: 260,
                 height: 200,
               ),
@@ -40,7 +40,7 @@ class WelcomeScreen extends StatelessWidget {
             bottom: -30,
             left: -40,
             child: _WaveBlob(
-              color: isDark ? const Color(0xFF1E2D42) : const Color(0xFFFFF8E1),
+              color: isDark ? const Color(0xFF1E2D42) : const Color(0xFFFFFFFF),
               width: 220,
               height: 180,
             ),

@@ -19,15 +19,16 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-    _controller =
-        AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _controller = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1200));
     _fadeAnim = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
     _controller.forward();
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => WelcomeScreen(isDark: widget.isDark)),
+          MaterialPageRoute(
+              builder: (_) => WelcomeScreen(isDark: widget.isDark)),
         );
       }
     });
@@ -57,35 +58,13 @@ class _SplashScreenState extends State<SplashScreen>
               // Logo
               Column(
                 children: [
-                  RichText(
-                    textAlign: TextAlign.center,
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: 'Groce',
-                          style: GoogleFonts.poppins(
-                            fontSize: 52,
-                            fontWeight: FontWeight.w800,
-                            color: textColor,
-                          ),
-                        ),
-                        TextSpan(
-                          text: '\nWise',
-                          style: GoogleFonts.poppins(
-                            fontSize: 52,
-                            fontWeight: FontWeight.w800,
-                            color: accentColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Shopping cart icon
-                  Icon(
-                    Icons.shopping_cart_outlined,
-                    size: 72,
-                    color: textColor,
+                  Image.asset(
+                    (widget.isDark
+                        ? 'lib/screens/Images/Logo_dark.png'
+                        : 'lib/screens/Images/Logo_light.png'),
+                    height: 250,
+                    width: 250,
+                    fit: BoxFit.contain,
                   ),
                 ],
               ),

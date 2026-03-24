@@ -40,7 +40,6 @@ class AppTheme {
       colorScheme: const ColorScheme.dark(
         primary: AppColors.purple,
         surface: AppColors.darkSurface,
-        background: AppColors.darkBg,
       ),
       textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
       appBarTheme: AppBarTheme(
@@ -69,11 +68,10 @@ class AppTheme {
       colorScheme: const ColorScheme.light(
         primary: Colors.black,
         surface: AppColors.lightSurface,
-        background: AppColors.lightBg,
       ),
       textTheme: GoogleFonts.poppinsTextTheme(ThemeData.light().textTheme),
       appBarTheme: AppBarTheme(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.lightBg,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.black),
         titleTextStyle: GoogleFonts.poppins(

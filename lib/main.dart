@@ -15,15 +15,19 @@ void main() {
 class GroceWiseApp extends StatefulWidget {
   const GroceWiseApp({super.key});
 
+  // Global key so child widgets can call GroceWiseApp.of(context).toggleTheme()
+  static _GroceWiseAppState of(BuildContext context) =>
+      context.findAncestorStateOfType<_GroceWiseAppState>()!;
+
   @override
   State<GroceWiseApp> createState() => _GroceWiseAppState();
 }
 
 class _GroceWiseAppState extends State<GroceWiseApp> {
-  bool _isDark = true;
+  bool isDark = true;
 
-  void _toggleTheme(bool isDark) {
-    setState(() => _isDark = isDark);
+  void toggleTheme(bool value) {
+    setState(() => isDark = value);
   }
 
   @override
@@ -33,8 +37,8 @@ class _GroceWiseAppState extends State<GroceWiseApp> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      themeMode: _isDark ? ThemeMode.dark : ThemeMode.light,
-      home: SplashScreen(isDark: _isDark),
+      themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+      home: SplashScreen(isDark: isDark),
     );
   }
 }

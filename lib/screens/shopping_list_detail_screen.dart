@@ -7,8 +7,11 @@ class ShoppingListDetailScreen extends StatefulWidget {
   final ShoppingList list;
   final bool isDark;
 
-  const ShoppingListDetailScreen(
-      {super.key, required this.list, this.isDark = true});
+  const ShoppingListDetailScreen({
+    super.key,
+    required this.list,
+    this.isDark = true,
+  });
 
   @override
   State<ShoppingListDetailScreen> createState() =>
@@ -18,22 +21,24 @@ class ShoppingListDetailScreen extends StatefulWidget {
 class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final List<String> _stores = ['Aldi List', 'Coles List', 'Woolworths List'];
+  final List<String> _stores = ['Aldi', 'Coles', 'Woolworths'];
 
-  // Sample items per store
+  // Sample items per store tab (replace with real data from ShoppingList.items)
   final Map<String, List<_ListItem>> _storeItems = {
-    'Aldi List': [
+    'Aldi': [
       _ListItem(name: 'Apples', price: 2.50, quantity: 2, emoji: '🍎'),
-      _ListItem(name: 'Bananas', price: 3.00, quantity: 1, emoji: '🍌'),
+      _ListItem(name: 'Bananas', price: 2.49, quantity: 1, emoji: '🍌'),
+      _ListItem(name: 'Whole Milk 2L', price: 3.99, quantity: 1, emoji: '🥛'),
     ],
-    'Coles List': [
-      _ListItem(name: 'Orange', price: 1.50, quantity: 2, emoji: '🍊'),
-      _ListItem(name: 'Pepsi | 250 ml', price: 2.00, quantity: 1, emoji: '🥤'),
-      _ListItem(name: "Elmer's Glue", price: 5.00, quantity: 1, emoji: '🧴'),
+    'Coles': [
+      _ListItem(name: 'Orange Juice 1L', price: 4.50, quantity: 1, emoji: '🍊'),
+      _ListItem(name: 'Pepsi | 250ml', price: 2.00, quantity: 2, emoji: '🥤'),
+      _ListItem(name: 'Bread', price: 3.20, quantity: 1, emoji: '🍞'),
     ],
-    'Woolworths List': [
-      _ListItem(name: 'Milk 2L', price: 3.20, quantity: 1, emoji: '🥛'),
-      _ListItem(name: 'Bread', price: 2.80, quantity: 1, emoji: '🍞'),
+    'Woolworths': [
+      _ListItem(name: 'Whole Milk 2L', price: 4.20, quantity: 1, emoji: '🥛'),
+      _ListItem(name: 'Chicken Breast', price: 8.50, quantity: 1, emoji: '🍗'),
+      _ListItem(name: 'Avocado', price: 4.50, quantity: 2, emoji: '🥑'),
     ],
   };
 
@@ -50,55 +55,88 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
     super.dispose();
   }
 
-  double _getTotal(String store) {
-    return (_storeItems[store] ?? [])
-        .fold(0, (sum, item) => sum + item.price * item.quantity);
+  double _getStoreTotal(String store) {
+    return (_storeItems[store] ?? []).fold(
+      0.0,
+      (sum, item) => sum + item.price * item.quantity,
+    );
   }
 
-  double get _grandTotal => _stores.fold(0, (s, st) => s + _getTotal(st));
+  double get _grandTotal =>
+      _stores.fold(0.0, (s, store) => s + _getStoreTotal(store));
 
   void _showShareOptions() {
     showModalBottomSheet(
       context: context,
-      backgroundColor:
-          widget.isDark ? AppColors.darkSurface : Colors.white,
+      backgroundColor: widget.isDark ? AppColors.darkSurface : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'EXPORT AS PDF',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: widget.isDark ? Colors.white70 : Colors.black54,
-                    letterSpacing: 0.5,
-                  ),
-                ),
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: (widget.isDark ? Colors.white : Colors.black)
+                    .withOpacity(0.2),
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                    label: Text(
+                      'Export PDF',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor:
+                          widget.isDark ? Colors.white70 : Colors.black54,
+                      side: BorderSide(
+                        color: widget.isDark ? Colors.white24 : Colors.black12,
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ),
-                child: Text(
-                  'SHARE CODE',
-                  style: GoogleFonts.poppins(
-                      fontSize: 13, fontWeight: FontWeight.w600),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.share_outlined, size: 18),
+                    label: Text(
+                      'Share Code',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          widget.isDark ? AppColors.purple : Colors.black,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),
@@ -113,7 +151,8 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
     final textColor = isDark ? AppColors.white : AppColors.black;
     final cardBg = isDark ? AppColors.darkSurface : AppColors.lightCard;
     final totalBg = isDark ? AppColors.darkCard : AppColors.lightSurface;
-    final activeTabColor = isDark ? AppColors.purple : AppColors.amberDark;
+    final activeTabColor = isDark ? AppColors.purple : Colors.black;
+    final currentStore = _stores[_tabController.index];
 
     return Scaffold(
       backgroundColor: bg,
@@ -145,48 +184,71 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
                     onTap: _showShareOptions,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: isDark ? AppColors.darkCard : Colors.black,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
-                        'Share',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.share_outlined,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Share',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            // Tab bar
+            const SizedBox(height: 8),
+            // Store tabs
             TabBar(
               controller: _tabController,
               isScrollable: true,
               labelColor: textColor,
               unselectedLabelColor: textColor.withOpacity(0.4),
               labelStyle: GoogleFonts.poppins(
-                  fontSize: 13, fontWeight: FontWeight.w600),
-              unselectedLabelStyle:
-                  GoogleFonts.poppins(fontSize: 13),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+              unselectedLabelStyle: GoogleFonts.poppins(fontSize: 13),
               indicatorColor: activeTabColor,
               indicatorWeight: 2.5,
               tabs: _stores.map((s) => Tab(text: s)).toList(),
             ),
-            const SizedBox(height: 8),
-            // Tab views
+            // Tab content
             Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: _stores.map((store) {
                   final items = _storeItems[store] ?? [];
+                  if (items.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'No items for $store',
+                        style: GoogleFonts.poppins(
+                          color: textColor.withOpacity(0.4),
+                        ),
+                      ),
+                    );
+                  }
                   return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                     itemCount: items.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
@@ -200,8 +262,8 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
                         child: Row(
                           children: [
                             Container(
-                              width: 56,
-                              height: 56,
+                              width: 52,
+                              height: 52,
                               decoration: BoxDecoration(
                                 color: isDark
                                     ? Colors.white10
@@ -209,8 +271,10 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Center(
-                                child: Text(item.emoji,
-                                    style: const TextStyle(fontSize: 28)),
+                                child: Text(
+                                  item.emoji,
+                                  style: const TextStyle(fontSize: 26),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -219,7 +283,7 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    '${item.name} - \$${item.price.toStringAsFixed(2)}',
+                                    item.name,
                                     style: GoogleFonts.poppins(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -227,10 +291,11 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
                                     ),
                                   ),
                                   Text(
-                                    '${item.quantity} ${item.quantity == 1 ? 'item' : 'items'}',
+                                    '\$${item.price.toStringAsFixed(2)} each',
                                     style: GoogleFonts.poppins(
-                                        fontSize: 12,
-                                        color: textColor.withOpacity(0.5)),
+                                      fontSize: 12,
+                                      color: textColor.withOpacity(0.5),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -242,19 +307,24 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
                                   icon: Icons.remove,
                                   isDark: isDark,
                                   onTap: () {
-                                    if (item.quantity > 1) {
-                                      setState(() => item.quantity--);
-                                    }
+                                    setState(() {
+                                      if (item.quantity > 1) {
+                                        item.quantity--;
+                                      } else {
+                                        items.removeAt(index);
+                                      }
+                                    });
                                   },
                                 ),
                                 Padding(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 10),
+                                    horizontal: 10,
+                                  ),
                                   child: Text(
                                     '${item.quantity}',
                                     style: GoogleFonts.poppins(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
                                       color: textColor,
                                     ),
                                   ),
@@ -262,8 +332,7 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
                                 _QBtn(
                                   icon: Icons.add,
                                   isDark: isDark,
-                                  onTap: () =>
-                                      setState(() => item.quantity++),
+                                  onTap: () => setState(() => item.quantity++),
                                 ),
                               ],
                             ),
@@ -286,21 +355,47 @@ class _ShoppingListDetailScreenState extends State<ShoppingListDetailScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Total price:',
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: textColor,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$currentStore total',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: textColor.withOpacity(0.6),
+                        ),
+                      ),
+                      Text(
+                        '\$${_getStoreTotal(currentStore).toStringAsFixed(2)}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    '\$${_getTotal(_stores[_tabController.index]).toStringAsFixed(2)}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: textColor,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Grand total (all stores)',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: textColor.withOpacity(0.5),
+                        ),
+                      ),
+                      Text(
+                        '\$${_grandTotal.toStringAsFixed(2)}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: isDark
+                              ? AppColors.purpleLight
+                              : Colors.green.shade700,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -323,13 +418,13 @@ class _QBtn extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 32,
-        height: 32,
+        width: 30,
+        height: 30,
         decoration: BoxDecoration(
-          color: isDark ? Colors.white : Colors.black,
+          color: isDark ? AppColors.purple : Colors.black,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: isDark ? Colors.black : Colors.white, size: 18),
+        child: Icon(icon, color: Colors.white, size: 16),
       ),
     );
   }

@@ -19,3 +19,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - lib/screens/Images/Logo_dark.png
+    - lib/screens/Images/Logo_light.png
