@@ -150,6 +150,20 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
           ),
+          if (!_isLoading && _searched && _results.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '${_results.length} result${_results.length == 1 ? '' : 's'} found',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: textColor.withOpacity(0.5),
+                  ),
+                ),
+              ),
+            ),
           if (_errorText != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -274,7 +288,11 @@ class _SearchResultCard extends StatelessWidget {
                                   fontWeight: isCheapest
                                       ? FontWeight.w700
                                       : FontWeight.w400,
-                                  color: textColor,
+                                  color: isCheapest
+                                      ? (isDark
+                                          ? AppColors.purpleLight
+                                          : Colors.green.shade700)
+                                      : textColor,
                                 ),
                               ),
                             ],

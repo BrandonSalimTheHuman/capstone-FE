@@ -252,7 +252,27 @@ class _ListsScreenState extends State<ListsScreen> {
                             color: textColor,
                           ),
                         )
-                      : Icon(Icons.add, color: textColor, size: 26),
+                      : Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isDark ? AppColors.purple : AppColors.black,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.add,
+                                  color: Colors.white, size: 16),
+                              const SizedBox(width: 4),
+                              Text('New list',
+                                  style: GoogleFonts.poppins(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
                 ),
               ],
             ),

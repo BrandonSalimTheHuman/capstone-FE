@@ -250,22 +250,31 @@ class _HomeTabState extends State<_HomeTab> {
           // Search bar — tappable, navigates to SearchScreen
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: searchBg,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.search, color: subtitleColor, size: 20),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Search for groceries',
-                    style:
-                        GoogleFonts.poppins(fontSize: 14, color: subtitleColor),
-                  ),
-                ],
+            child: GestureDetector(
+              onTap: () {
+                // Find parent HomeScreen state and switch to Search tab
+                final homeState =
+                    context.findAncestorStateOfType<_HomeScreenState>();
+                homeState?.setState(() => homeState._selectedIndex = 1);
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: searchBg,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.search, color: subtitleColor, size: 20),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Search for groceries...',
+                      style: GoogleFonts.poppins(
+                          fontSize: 14, color: subtitleColor),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -298,9 +307,6 @@ class _HomeTabState extends State<_HomeTab> {
                       itemBuilder: (context, index) {
                         final item = _items[index];
                         final cheapestStore = item.cheapestStore;
-                        final priceLabel = cheapestStore == null
-                            ? 'No prices available yet'
-                            : 'Cheapest: \$${item.cheapestPrice.toStringAsFixed(2)} at ${cheapestStore.store}';
 
                         return GestureDetector(
                           onTap: () => Navigator.push(
@@ -350,13 +356,40 @@ class _HomeTabState extends State<_HomeTab> {
                                         ),
                                       ),
                                       const SizedBox(height: 2),
-                                      Text(
-                                        priceLabel,
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 12,
-                                          color: subtitleColor,
+                                      if (cheapestStore == null)
+                                        Text(
+                                          'No prices available yet',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 12,
+                                            color: subtitleColor,
+                                          ),
+                                        )
+                                      else
+                                        RichText(
+                                          text: TextSpan(
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              color: subtitleColor,
+                                            ),
+                                            children: [
+                                              const TextSpan(
+                                                  text: 'Cheapest: '),
+                                              TextSpan(
+                                                text:
+                                                    '\$${item.cheapestPrice.toStringAsFixed(2)}',
+                                                style: GoogleFonts.poppins(
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isDark
+                                                      ? AppColors.purpleLight
+                                                      : Colors.green.shade700,
+                                                ),
+                                              ),
+                                              TextSpan(
+                                                  text:
+                                                      ' at ${cheapestStore.store}'),
+                                            ],
+                                          ),
                                         ),
-                                      ),
                                     ],
                                   ),
                                 ),
